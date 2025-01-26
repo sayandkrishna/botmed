@@ -16,12 +16,14 @@ HUGGINGFACE_REPO_ID = "mistralai/Mistral-7B-Instruct-v0.3"
 
 def load_llm(huggingface_repo_id):
     """
-    Load the LLM using HuggingFaceEndpoint.
+    Load the LLM using HuggingFaceEndpoint with proper token and max length configurations.
     """
     llm = HuggingFaceEndpoint(
         repo_id=huggingface_repo_id,
-        temperature=0.5,
-        model_kwargs={"token": HF_TOKEN, "max_length": 512}
+        model_kwargs={
+            "temperature": 0.5,
+            "max_length": 512,  # Enforces a token limit for responses
+        }
     )
     return llm
 
@@ -50,30 +52,54 @@ embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-Mi
 db = FAISS.load_local(DB_FAISS_PATH, embedding_model, allow_dangerous_deserialization=True)
 
 # Step 4: Initialize Memory for Conversation
-memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+memory = ConversationBufferMemory(
+    memory_key="chat_history",
+    return_messages=True,
+    max_token_limit=1000  # Ensures memory doesn't exceed model constraints
+)
 
-# Step 5: Create Conversational QA Chain
+# Step 5: Truncate Context Function
+MAX_CONTEXT_TOKENS = 1024  # Define the token limit for the input context
+
+def truncate_context(context):
+    """
+    Truncate the context to the last MAX_CONTEXT_TOKENS tokens to avoid exceeding limits.
+    """
+    return context[-MAX_CONTEXT_TOKENS:]
+
+# Step 6: Create Conversational QA Chain
 qa_chain = ConversationalRetrievalChain.from_llm(
     llm=load_llm(HUGGINGFACE_REPO_ID),
-    retriever=db.as_retriever(search_kwargs={'k': 3}),
+    retriever=db.as_retriever(search_kwargs={'k': 3}),  # Limits retrieved documents to 3
     memory=memory
 )
 
-# Now invoke with a single query
-while True:
-    user_query = input("Write Query Here (or type 'exit' to quit): ")
-    if user_query.lower() == "exit":
-        print("Exiting the conversation.")
-        break
+# Main Function for Querying
+def main():
+    """
+    Main loop to handle user queries and process responses.
+    """
+    print("Start your conversation (type 'exit' to quit):\n")
+    while True:
+        user_query = input("Write Query Here (or type 'exit' to quit): ")
+        if user_query.lower() == "exit":
+            print("Exiting the conversation.")
+            break
 
-    # Invoke the chain
-    response = qa_chain.invoke({'question': user_query})
+        # Invoke the chain
+        try:
+            response = qa_chain.invoke({'question': user_query})
 
-    # Debug the full response
-    print("\nDEBUG RESPONSE: ", response)
+            # Debug the full response
+            print("\nDEBUG RESPONSE: ", response)
 
-    # Extract the 'answer' key
-    if 'answer' in response:
-        print("\nRESULT: ", response['answer'])
-    else:
-        print("\nNo 'answer' found in the response. Full response:", response)
+            # Extract the 'answer' key
+            if 'answer' in response:
+                print("\nRESULT: ", response['answer'])
+            else:
+                print("\nNo 'answer' found in the response. Full response:", response)
+        except Exception as e:
+            print("\nERROR: ", str(e))
+
+if __name__ == "__main__":
+    main()

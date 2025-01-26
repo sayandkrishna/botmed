@@ -69,7 +69,7 @@ def main():
     )
 
     # Custom CSS for styling
-    st.markdown("""
+    st.markdown(""" 
     <style>
     .main {
         background-color: #f0f2f6;
@@ -94,14 +94,14 @@ def main():
 
     # Title and Welcome Section
     st.title("🤖 DOCPLUS ASSIST")
-    st.markdown("### Ask anything about medical topics, diseases, treatments, or health - related doubts, and get reliable insights.")
+    st.markdown("### Ask anything about medical topics, diseases, treatments, or health-related doubts, and get reliable insights.")
 
     # Sidebar for additional information
     with st.sidebar:
         st.header("About")
-        st.warning("""
+        st.warning(""" 
         **Important Notice:**  
-        This Health Care Assist Bot is trained on Harrison's Principles of Internal Medicine .  
+        This Health Care Assist Bot is trained on Harrison's Principles of Internal Medicine.  
         While it provides helpful information, it is not a substitute for professional medical advice, diagnosis, or treatment.  
         Always consult a qualified healthcare provider for medical concerns.
         """)
@@ -110,9 +110,10 @@ def main():
     if 'messages' not in st.session_state:
         st.session_state.messages = []
         # Add welcome message
-        welcome_msg = "Hello! Welcome to Docplus Assist. How can I help you today?."
+        welcome_msg = "Hello! Welcome to Docplus Assist. How can I help you today?"
         st.session_state.messages.append({'role': 'assistant', 'content': welcome_msg})
 
+    # Initialize ConversationBufferMemory
     if 'memory' not in st.session_state:
         st.session_state.memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
@@ -161,10 +162,11 @@ def main():
             st.session_state.messages.append({'role': 'user', 'content': prompt})
 
             # Invoke the chain with the user prompt
-            response = qa_chain.invoke({'question': prompt})
+            with st.spinner("Processing..."):
+                response = qa_chain.invoke({'question': prompt})
 
             # Extract the answer
-            result = response.get("answer", "No answer found.")
+            result = response.get("answer", "I'm sorry, I couldn't find an answer to your query.")
 
             # Display the assistant's response
             st.chat_message('assistant').markdown(result)
@@ -172,7 +174,6 @@ def main():
 
     except Exception as e:
         st.error(f"Error: {str(e)}")
-
 
 if __name__ == "__main__":
     main()
